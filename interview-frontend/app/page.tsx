@@ -105,7 +105,7 @@ const MicrophoneTest: React.FC = () => {
             <div>
               <p className="font-medium text-white">Proceed when ready</p>
               <p className="text-zinc-400">
-                Once you're satisfied with your audio quality, click continue to
+                Once you&apos;re satisfied with your audio quality, click continue to
                 begin the assessment.
               </p>
             </div>
