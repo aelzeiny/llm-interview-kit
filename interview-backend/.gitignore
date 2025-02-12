@@ -1,0 +1,8 @@
+.env.local
+venv/
+.DS_Store
+downloads/
+.env
+.idea
+env/
+__pycache__
