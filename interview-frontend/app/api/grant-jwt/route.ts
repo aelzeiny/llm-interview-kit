@@ -8,6 +8,7 @@ import {
 // NOTE: you are expected to define the following environment variables in `.env.local`:
 const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
+const CUSTOM_API_SECRET = process.env.CUSTOM_API_SECRET;
 
 // don't cache the results
 export const revalidate = 0;
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
   const name = searchParams.get("name");
   const email = searchParams.get("email");
 
-  if (request.headers.get("authorization") !== "__AIRTABLE__") {
+  if (request.headers.get("authorization") !== CUSTOM_API_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
