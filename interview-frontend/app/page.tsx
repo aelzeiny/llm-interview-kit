@@ -1,199 +1,170 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import React, { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
-  LiveKitRoom,
-  useVoiceAssistant,
-  BarVisualizer,
-  RoomAudioRenderer,
-  VoiceAssistantControlBar,
-  AgentState,
-  DisconnectButton,
-} from "@livekit/components-react";
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { NoAgentNotification } from "@/components/NoAgentNotification";
-import { CloseIcon } from "@/components/CloseIcon";
-import { useKrispNoiseFilter } from "@livekit/components-react/krisp";
-import type { ClaimGrants } from "livekit-server-sdk";
-import { MediaDeviceFailure } from "livekit-client";
-import localFont from "next/font/local";
+  Mic,
+  Square,
+  ArrowRight,
+  Volume2,
+  CheckCircle2,
+  Clock,
+} from "lucide-react";
 
-const HoneyCombFont = localFont({ src: "./font/honeycomb.woff" });
+interface MediaRecorderWithTimeslice extends MediaRecorder {
+  start(timeslice?: number): void;
+}
 
-function Page() {
-  const [claims, updateClaims] = useState<ClaimGrants | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [agentState, setAgentState] = useState<AgentState>("disconnected");
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isStarted, setIsStarted] = useState<boolean | null>(false);
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+const MicrophoneTest: React.FC = () => {
+  const router = useRouter();
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [audioURL, setAudioURL] = useState<string>("");
+  const [error, setError] = useState<string>("");
+  const [hasListenedToAudio, setHasListenedToAudio] = useState<boolean>(false);
+  const mediaRecorder = useRef<MediaRecorderWithTimeslice | null>(null);
 
-  useEffect(() => {
-    const fetchClaims = async () => {
-      const token = searchParams.get("token");
-      if (!token) {
-        setError("Unauthorized: No Token provided");
-        return;
-      }
-      const url = new URL(
-        process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT ?? "/api/verify",
-        window.location.origin
-      );
-      const response = await fetch(url.toString(), {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const newClaims = await response.json();
-      setIsLoading(false);
-      if (newClaims.error) {
-        setError(newClaims.error);
-      } else {
-        updateClaims(newClaims);
-      }
-    };
-    fetchClaims();
-  }, [searchParams]);
+  const startRecording = async (): Promise<void> => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder.current = new MediaRecorder(
+        stream
+      ) as MediaRecorderWithTimeslice;
+      const chunks: Blob[] = [];
 
-  const onConnectButtonClicked = () => {
-    setIsStarted(true);
+      mediaRecorder.current.ondataavailable = (e: BlobEvent) => {
+        if (e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      mediaRecorder.current.onstop = () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        setAudioURL(url);
+        setHasListenedToAudio(false);
+      };
+
+      mediaRecorder.current.start();
+      setIsRecording(true);
+      setError("");
+    } catch (err) {
+      setError("Please allow microphone access to continue");
+      console.error("Error accessing microphone:", err);
+    }
+  };
+
+  const stopRecording = (): void => {
+    if (mediaRecorder.current && isRecording) {
+      mediaRecorder.current.stop();
+      setIsRecording(false);
+      mediaRecorder.current.stream.getTracks().forEach((track) => track.stop());
+    }
+  };
+
+  const handleContinue = (): void => {
+    // Preserve any existing query parameters
+    const currentParams = window.location.search;
+    router.push(`/assess${currentParams}`);
+  };
+
+  const handleAudioPlay = (): void => {
+    setHasListenedToAudio(true);
   };
 
   return (
-    <main
-      data-lk-theme="default"
-      className="h-full grid content-center bg-[var(--lk-bg)]"
-    >
-      <div style={{ textAlign: "center" }}>
-        <h2 className={HoneyCombFont.className} style={{ fontSize: "5rem" }}>
-          Hiveminds
-        </h2>
-        {isLoading && <h3>Loading...</h3>}
-        {error && <h3>Error: {error}</h3>}
-        {claims && <h3>Hello {claims?.name}</h3>}
-        {isStarted === null && (
-          <p>
-            Thank you for taking the assessment. We&apos;ll get back to you in
-            24 hours. <br />
-            If there was an issue then please do not hesitate to email us back
-            or try refreshing the page.
-            <br />
-          </p>
-        )}
+    <div className="max-w-2xl mx-auto bg-zinc-900 rounded-lg shadow-xl overflow-hidden p-8 border border-zinc-800">
+      <h3 className="text-2xl font-bold text-center mb-6 text-white">
+        Welcome to your assessment
+      </h3>
+
+      <div className="mb-8 text-white">
+        <h2 className="text-lg font-semibold mb-4">Before you begin:</h2>
+        <div className="space-y-6">
+          <div className="flex items-start space-x-3">
+            <Clock className="w-6 h-6 mt-1 flex-shrink-0 text-primary" />
+            <div>
+              <p className="font-medium text-white">Put aside 5-10 minutes</p>
+              <p className="text-zinc-400">
+                This will be a short interview in English. You will not have to
+                write code.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start space-x-3">
+            <Volume2 className="w-6 h-6 mt-1 flex-shrink-0 text-primary" />
+            <div>
+              <p className="font-medium text-white">Test your microphone</p>
+              <p className="text-zinc-400">
+                Click the microphone button below and say a few words. We
+                recommend speaking as you would during the assessment.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start space-x-3">
+            <CheckCircle2 className="w-6 h-6 mt-1 flex-shrink-0 text-primary" />
+            <div>
+              <p className="font-medium text-white">Proceed when ready</p>
+              <p className="text-zinc-400">
+                Once you're satisfied with your audio quality, click continue to
+                begin the assessment.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {!isLoading && !error && isStarted !== null && (
-        <>
-          <LiveKitRoom
-            token={token!}
-            serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
-            connect={isStarted === true}
-            audio={true}
-            video={false}
-            onMediaDeviceFailure={onDeviceFailure}
-            onDisconnected={() => {
-              setIsStarted(null);
-            }}
-            className="grid grid-rows-[2fr_1fr] items-center"
-          >
-            <SimpleVoiceAssistant onStateChange={setAgentState} />
-            <ControlBar
-              onConnectButtonClicked={onConnectButtonClicked}
-              agentState={agentState}
-            />
-            <RoomAudioRenderer />
-            <NoAgentNotification state={agentState} />
-          </LiveKitRoom>
-        </>
+      {error && (
+        <div className="bg-destructive/10 border-l-4 border-destructive p-4 mb-6 rounded-md">
+          <p className="text-destructive-foreground">{error}</p>
+        </div>
       )}
-    </main>
-  );
-}
 
-function SimpleVoiceAssistant(props: {
-  onStateChange: (state: AgentState) => void;
-}) {
-  const { state, audioTrack } = useVoiceAssistant();
-  useEffect(() => {
-    props.onStateChange(state);
-  }, [props, state]);
-  return (
-    <div className="h-[300px] max-w-[90vw] mx-auto">
-      <BarVisualizer
-        state={state}
-        barCount={5}
-        trackRef={audioTrack}
-        className="agent-visualizer"
-        options={{ minHeight: 24 }}
-      />
-    </div>
-  );
-}
-
-function ControlBar(props: {
-  onConnectButtonClicked: () => void;
-  agentState: AgentState;
-}) {
-  /**
-   * Use Krisp background noise reduction when available.
-   * Note: This is only available on Scale plan, see {@link https://livekit.io/pricing | LiveKit Pricing} for more details.
-   */
-  const krisp = useKrispNoiseFilter();
-  useEffect(() => {
-    krisp.setNoiseFilterEnabled(true);
-  }, []);
-
-  return (
-    <div className="relative h-[100px]">
-      <AnimatePresence>
-        {props.agentState === "disconnected" && (
-          <motion.button
-            initial={{ opacity: 0, top: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, top: "-10px" }}
-            transition={{ duration: 1, ease: [0.09, 1.04, 0.245, 1.055] }}
-            className="uppercase absolute left-1/2 -translate-x-1/2 px-4 py-2 bg-white text-black rounded-md"
-            onClick={() => props.onConnectButtonClicked()}
-          >
-            Begin Assessment
-          </motion.button>
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
-        {props.agentState !== "disconnected" &&
-          props.agentState !== "connecting" && (
-            <motion.div
-              initial={{ opacity: 0, top: "10px" }}
-              animate={{ opacity: 1, top: 0 }}
-              exit={{ opacity: 0, top: "-10px" }}
-              transition={{ duration: 0.4, ease: [0.09, 1.04, 0.245, 1.055] }}
-              className="flex h-8 absolute left-1/2 -translate-x-1/2  justify-center"
+      <div className="space-y-6">
+        <div className="flex justify-center">
+          {!isRecording ? (
+            <button
+              onClick={startRecording}
+              className="bg-primary text-primary-foreground p-4 rounded-full hover:opacity-90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+              aria-label="Start recording"
             >
-              <VoiceAssistantControlBar controls={{ leave: false }} />
-              <DisconnectButton>
-                <CloseIcon />
-              </DisconnectButton>
-            </motion.div>
+              <Mic className="w-8 h-8" />
+            </button>
+          ) : (
+            <button
+              onClick={stopRecording}
+              className="bg-destructive text-destructive-foreground p-4 rounded-full hover:opacity-90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+              aria-label="Stop recording"
+            >
+              <Square className="w-8 h-8" />
+            </button>
           )}
-      </AnimatePresence>
+        </div>
+
+        {audioURL && (
+          <div className="flex justify-center">
+            <audio
+              controls
+              src={audioURL}
+              className="w-full rounded-md [&::-webkit-media-controls-panel]:bg-muted [&::-webkit-media-controls-current-time-display]:text-foreground [&::-webkit-media-controls-time-remaining-display]:text-foreground"
+              onPlay={handleAudioPlay}
+            />
+          </div>
+        )}
+
+        {audioURL && hasListenedToAudio && (
+          <div className="flex justify-center mt-6">
+            <button
+              onClick={handleContinue}
+              className="flex items-center space-x-2 bg-secondary text-secondary-foreground px-6 py-3 rounded-md hover:opacity-90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+            >
+              <span>Continue to Assessment</span>
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
-}
+};
 
-function onDeviceFailure(error?: MediaDeviceFailure) {
-  console.error(error);
-  alert(
-    "Error acquiring camera or microphone permissions. Please make sure you grant the necessary permissions in your browser and reload the tab"
-  );
-}
-
-export default function SuspendedPage() {
-  return (
-    <Suspense fallback={<h2>Loading...</h2>}>
-      <Page />
-    </Suspense>
-  );
-}
+export default MicrophoneTest;
