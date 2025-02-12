@@ -70,7 +70,7 @@ function Page() {
             Thank you for taking the assessment. We&apos;ll get back to you in
             24 hours. <br />
             If there was an issue then please do not hesitate to email us back
-            or refreshing the page.
+            or try refreshing the page.
             <br />
           </p>
         )}
