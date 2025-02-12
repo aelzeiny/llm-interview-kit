@@ -14,6 +14,7 @@ from livekit.plugins import openai
 import textwrap
 from livekit import api
 import app_settings
+from uuid import uuid4
 
 
 logger = logging.getLogger("my-worker")
@@ -31,7 +32,7 @@ async def setup_recording(ctx: JobContext):
         audio_only=False,
         segment_outputs=[
             api.SegmentedFileOutput(
-                filename_prefix=ctx.room.name + "/",
+                filename_prefix=ctx.room.name + "/" + str(uuid4()) + "/",
                 playlist_name="my-playlist.m3u8",
                 live_playlist_name="my-live-playlist.m3u8",
                 segment_duration=10,
@@ -101,7 +102,7 @@ def run_multimodal_agent(ctx: JobContext, participant: rtc.RemoteParticipant):
             4. What are server-side caches and what are some popular ones used in the cloud?
             5. What are NoSQL or non-relational databases and what are some popular ones used in the cloud?
                              
-            At the end of the interview, thank them for their time then disconnect promptly.
+            At the end of the interview, thank them for their time then disconnect promptly. This means disconnecting the WebRTC session for ALL users.
         """
         ),
         role="assistant",
