@@ -8,4 +8,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY *.py .
 
-CMD ["python", "agent.py", "prod"]
+CMD ["python", "agent.py", "start"]
