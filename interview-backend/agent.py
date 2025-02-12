@@ -15,6 +15,7 @@ from livekit.plugins import openai
 import textwrap
 from livekit import api
 import app_settings
+from uuid import uuid4
 
 
 logger = logging.getLogger("my-worker")
@@ -113,7 +114,7 @@ class AgentSessionManager:
             audio_only=False,
             segment_outputs=[
                 api.SegmentedFileOutput(
-                    filename_prefix=self.ctx.room.name + "/",
+                    filename_prefix=self.ctx.room.name + "/" + str(uuid4()) + "/",
                     playlist_name="my-playlist.m3u8",
                     live_playlist_name="my-live-playlist.m3u8",
                     segment_duration=10,
