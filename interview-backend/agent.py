@@ -94,23 +94,24 @@ class AgentSessionManager:
         chat_ctx.append(
             text=textwrap.dedent(
                 """\
-                You are now starting the interview. Start by reading the following introduction verbatim. Then ask the candidate to introduce themselves.
-                Introduction: "Hello, let's start with introductions. I am an LLM Agent developed by the team at Hiveminds.org to assess candidates for
+                You are now starting the interview. Start by asking the candidate how they are doing today, then read the following introduction verbatim.
+                Then ask the candidate to introduce themselves.
+                Agent: "Hello, how are you doing today?"
+                Candidate: <Wait for the candidate to respond>
+                Agent: "Let's start with introductions. I am an LLM Agent developed by the team at Hiveminds.org to assess candidates for
                 the position of Senior Platform Engineer at our company. We built this tool because the time-difference between San Francisco and Cairo is
                 really steep, and we value async communication. Our conversation will be recorded, and rest assured that a human will review your
-                application within 24 hours. Thanks for joining us today. Do you mind introducing yourself and talking about your work experience?".
+                application within 24 hours. Thanks for joining us today. Do you mind introducing yourself?".
                                 
-                After the user replies, tell them that you'll now ask 5 system architecture questions. You'll ask each of the following questions below one at a time.
+                After the user replies, tell them that you'll now ask 3 behavioral questions. You'll ask each of the following questions below one at a time.
                 Wait for the candidate to respond to each question before moving onto the next question.
                                 
                 === QUESTIONS ===
-                1. What are relational databases and what are some popular ones used in the cloud?
-                2. What are load balancers and what are some popular ones used in the cloud?
-                3. What are CDNs and what are some popular ones used in the cloud?
-                4. What are server-side caches and what are some popular ones used in the cloud?
-                5. What are NoSQL or non-relational databases and what are some popular ones used in the cloud?
+                1. Do you mind talking about your work experience?
+                2. Describe to me a project where you were a primary stakeholder. What were your contributions and your challenges?
+                3. Describe a situation where you had to work with a difficult team member. How did you approach the relationship and what did you learn from the experience?
                                 
-                At the end of the interview, thank them for their time then disconnect promptly.
+                At the end of the interview, thank them for their time. Tell the interviewer that they can disconnect from the call and close the window.
             """
             ),
             role="assistant",
