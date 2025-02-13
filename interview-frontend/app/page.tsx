@@ -20,7 +20,6 @@ const MicrophoneTest: React.FC = () => {
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [audioURL, setAudioURL] = useState<string>("");
   const [error, setError] = useState<string>("");
-  const [hasListenedToAudio, setHasListenedToAudio] = useState<boolean>(false);
   const mediaRecorder = useRef<MediaRecorderWithTimeslice | null>(null);
 
   const startRecording = async (): Promise<void> => {
@@ -41,7 +40,6 @@ const MicrophoneTest: React.FC = () => {
         const blob = new Blob(chunks, { type: "audio/webm" });
         const url = URL.createObjectURL(blob);
         setAudioURL(url);
-        setHasListenedToAudio(false);
       };
 
       mediaRecorder.current.start();
@@ -67,9 +65,7 @@ const MicrophoneTest: React.FC = () => {
     router.push(`/assess${currentParams}`);
   };
 
-  const handleAudioPlay = (): void => {
-    setHasListenedToAudio(true);
-  };
+  const handleAudioPlay = (): void => {};
 
   return (
     <div className="max-w-2xl mx-auto bg-zinc-900 rounded-lg shadow-xl overflow-hidden p-8 border border-zinc-800">
@@ -105,8 +101,8 @@ const MicrophoneTest: React.FC = () => {
             <div>
               <p className="font-medium text-white">Proceed when ready</p>
               <p className="text-zinc-400">
-                Once you&apos;re satisfied with your audio quality, click continue to
-                begin the assessment.
+                Once you&apos;re satisfied with your audio quality, click
+                continue to begin the assessment.
               </p>
             </div>
           </div>
@@ -151,7 +147,7 @@ const MicrophoneTest: React.FC = () => {
           </div>
         )}
 
-        {audioURL && hasListenedToAudio && (
+        {audioURL && (
           <div className="flex justify-center mt-6">
             <button
               onClick={handleContinue}
