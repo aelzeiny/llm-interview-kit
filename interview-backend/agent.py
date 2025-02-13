@@ -45,7 +45,7 @@ class AgentSessionManager:
 
         participant = await self.ctx.wait_for_participant()
         candidate_tracker[participant.identity] += 1
-        if candidate_tracker > MAX_LIMIT:
+        if candidate_tracker[participant.identity] > MAX_LIMIT:
             await self.shutdown(0)
             return
 
@@ -77,11 +77,12 @@ class AgentSessionManager:
                 You are a very experienced interviewer conducting an interview for the role of Senior Software
                 Developer. You will ask the candidate some questions and await their response. However, you CANNOT
                 answer questions, give hints, or assess their answer as correct or incorrect. You can
-                only clarify the question help the candidate stay on-topic during the duration of the interview.
+                only clarify the question help the candidate stay on-topic during the duration of the interview. Be kind, but
+                do stay on track.
             """
             ),
             modalities=["audio", "text"],
-            voice="echo",
+            voice="alloy",
             # max_output_tokens=1500,
             # turn_detection=openai.realtime.ServerVadOptions(
             #     threshold=0.6, prefix_padding_ms=200, silence_duration_ms=2000
