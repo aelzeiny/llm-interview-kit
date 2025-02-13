@@ -18,10 +18,14 @@ import app_settings
 from uuid import uuid4
 import breezy_airtable
 from pyairtable.formulas import match
-
+from collections import defaultdict
 
 logger = logging.getLogger("my-worker")
 logger.setLevel(logging.INFO)
+
+
+candidate_tracker = defaultdict(int)
+MAX_LIMIT = 3
 
 
 class AgentSessionManager:
@@ -40,6 +44,11 @@ class AgentSessionManager:
         await self.ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
         participant = await self.ctx.wait_for_participant()
+        candidate_tracker[participant.identity] += 1
+        if candidate_tracker > MAX_LIMIT:
+            await self.shutdown(0)
+            return
+
         if participant.name != "TEST":
             await self.setup_recording()
 
@@ -51,10 +60,11 @@ class AgentSessionManager:
         logger.info("agent started")
         self.shutdown_task = asyncio.create_task(self.shutdown(10 * 60))
         self.ctx.add_shutdown_callback(self.cancel_shutdown_task)
-        self.update_airtable(self.ctx.identity)
+        self.update_airtable(participant.identity)
 
     def update_airtable(self, email: str):
         table = breezy_airtable.get_table()
+        logger.info("Updating airtable for email: %s", email)
         record = table.first(formula=match(dict(email=email)))
         table.update(record.get("id"), fields=dict(status="assessment completed"))
 
@@ -142,9 +152,6 @@ class AgentSessionManager:
                 room=self.ctx.job.room.name,
             )
         )
-        import pyairtable
-
-        pyairtable.Table.update()
 
     async def cancel_shutdown_task(self):
         if self.shutdown_task and not self.shutdown_task.done():
