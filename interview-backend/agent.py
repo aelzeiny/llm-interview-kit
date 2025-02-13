@@ -16,6 +16,8 @@ import textwrap
 from livekit import api
 import app_settings
 from uuid import uuid4
+import breezy_airtable
+from pyairtable.formulas import match
 
 
 logger = logging.getLogger("my-worker")
@@ -49,6 +51,12 @@ class AgentSessionManager:
         logger.info("agent started")
         self.shutdown_task = asyncio.create_task(self.shutdown(10 * 60))
         self.ctx.add_shutdown_callback(self.cancel_shutdown_task)
+        self.update_airtable(self.ctx.identity)
+
+    def update_airtable(self, email: str):
+        table = breezy_airtable.get_table()
+        record = table.first(formula=match(dict(email=email)))
+        table.update(record.get("id"), fields=dict(status="assessment completed"))
 
     async def run_multimodal_agent(self):
         logger.info("starting multimodal agent")
@@ -134,6 +142,9 @@ class AgentSessionManager:
                 room=self.ctx.job.room.name,
             )
         )
+        import pyairtable
+
+        pyairtable.Table.update()
 
     async def cancel_shutdown_task(self):
         if self.shutdown_task and not self.shutdown_task.done():

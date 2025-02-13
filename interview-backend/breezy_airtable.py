@@ -245,6 +245,14 @@ async def sync_it():
             all_candidates[c.email_address].source = "both"
         else:
             all_candidates[c.email_address] = c.to_airtable("hiveminds")
+    print(
+        "NumCandidates:",
+        len(all_candidates),
+        "HM",
+        len(all_candidates),
+        "RD",
+        len(rocketdevs_candidates),
+    )
     table = get_table()
     to_insert = [dict(fields=c.model_dump()) for c in all_candidates.values()]
     table.batch_upsert(to_insert, key_fields=["email"], replace=False)
