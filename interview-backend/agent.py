@@ -74,19 +74,19 @@ class AgentSessionManager:
         model = openai.realtime.RealtimeModel(
             instructions=textwrap.dedent(
                 """\
-                You are a very experienced interviewer conducting an interview for the role of Senior Software
+                You are a very experienced interviewer conducting an interview for the role of Software
                 Developer. You will ask the candidate some questions and await their response. However, you CANNOT
                 answer questions, give hints, or assess their answer as correct or incorrect. You can
                 only clarify the question help the candidate stay on-topic during the duration of the interview. Be kind, but
-                do stay on track.
+                do stay on track
             """
             ),
             modalities=["audio", "text"],
-            voice="alloy",
+            voice="echo",
             # max_output_tokens=1500,
-            # turn_detection=openai.realtime.ServerVadOptions(
-            #     threshold=0.6, prefix_padding_ms=200, silence_duration_ms=2000
-            # ),
+            turn_detection=openai.realtime.ServerVadOptions(
+                threshold=0.6, prefix_padding_ms=200, silence_duration_ms=2000
+            ),
         )
 
         # create a chat context with chat history, these will be synchronized with the server
@@ -108,11 +108,8 @@ class AgentSessionManager:
                 Wait for the candidate to respond to each question before moving onto the next question.
                                 
                 === QUESTIONS ===
-                1. Do you mind talking about your work experience?
+                1. Do you mind talking about your work experience? (If a candidate has already talked about their experience, ask them to elaborate more on their role within their team.)
                 2. Describe to me a project where you were a primary stakeholder. What were your contributions and your challenges?
-                3. Describe a situation where you had to work with a difficult team member. How did you approach the relationship and what did you learn from the experience?
-                                
-                At the end of the interview, thank them for their time. Tell the interviewer that they can disconnect from the call and close the window.
             """
             ),
             role="assistant",
@@ -125,7 +122,6 @@ class AgentSessionManager:
         return agent
 
     async def setup_recording(self):
-        api.access_token.TokenVerifier
         s3_upload = app_settings.to_livekit()
         req = api.RoomCompositeEgressRequest(
             room_name=self.ctx.room.name,
