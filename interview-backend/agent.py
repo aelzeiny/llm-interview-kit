@@ -90,9 +90,12 @@ class AgentSessionManager:
             modalities=["audio", "text"],
             voice="echo",
             # max_output_tokens=1500,
-            # turn_detection=openai.realtime.ServerVadOptions(
-            #     threshold=0.6, prefix_padding_ms=200, silence_duration_ms=2000
-            # ),
+            turn_detection=openai.realtime.ServerVadOptions(
+                threshold=0.6,
+                prefix_padding_ms=200,
+                silence_duration_ms=2000,
+                create_response=True,
+            ),
         )
 
         # create a chat context with chat history, these will be synchronized with the server
@@ -110,7 +113,7 @@ class AgentSessionManager:
                 really steep, and we value async communication. Our conversation will be recorded, and rest assured that a human will review your
                 application within 24 hours. Thanks for joining us today. Do you mind introducing yourself?".
                                 
-                After the user replies, tell them that you'll now ask 3 behavioral questions. You'll ask each of the following questions below one at a time.
+                After the user replies, tell them that you'll now ask 2 behavioral questions. You'll ask each of the following questions below one at a time.
                 Wait for the candidate to respond to each question before moving onto the next question.
                                 
                 === QUESTIONS ===
