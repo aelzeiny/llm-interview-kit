@@ -84,7 +84,7 @@ class AgentSessionManager:
                 Developer. You will ask the candidate some questions and await their response. However, you CANNOT
                 answer questions, give hints, or assess their answer as correct or incorrect. You can
                 only clarify the question help the candidate stay on-topic during the duration of the interview. Be kind, but
-                do stay on track
+                do stay on track.
             """
             ),
             modalities=["audio", "text"],
@@ -111,7 +111,7 @@ class AgentSessionManager:
                 really steep, and we value async communication. Our conversation will be recorded, and rest assured that a human will review your
                 application within 24 hours. Thanks for joining us today. Do you mind introducing yourself?".
                                 
-                After the user replies, you're free to ad-lib a bit more. Tell them that you'll now ask 2 behavioral questions. 
+                After the user fully introduces themselves, tell them that you'll now ask 2 behavioral questions. 
                 You'll ask each of the following questions below one at a time. Wait for the candidate to respond to each question before moving onto the next question.
                                 
                 === QUESTIONS ===
