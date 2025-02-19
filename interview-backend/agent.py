@@ -19,6 +19,8 @@ from uuid import uuid4
 import breezy_airtable
 from pyairtable.formulas import match
 from collections import defaultdict
+import redis.asyncio as redis
+
 
 logger = logging.getLogger("my-worker")
 logger.setLevel(logging.INFO)
@@ -32,6 +34,7 @@ class AgentSessionManager:
     def __init__(self, ctx: JobContext):
         self.ctx = ctx
         self.lk_api = api.LiveKitAPI()
+        self.egress_api = api.LiveKitAPI(url="http://hr_livekit:7880")
         self.shutdown_task = None
 
     @classmethod
@@ -50,7 +53,7 @@ class AgentSessionManager:
             return
 
         if participant.name != "TEST":
-            await self.setup_recording()
+            asyncio.create_task(self.setup_recording())
 
         agent = await self.run_multimodal_agent()
 
@@ -63,10 +66,13 @@ class AgentSessionManager:
         self.update_airtable(participant.identity)
 
     def update_airtable(self, email: str):
-        table = breezy_airtable.get_table()
-        logger.info("Updating airtable for email: %s", email)
-        record = table.first(formula=match(dict(email=email)))
-        table.update(record.get("id"), fields=dict(status="assessment completed"))
+        try:
+            table = breezy_airtable.get_table()
+            logger.info("Updating airtable for email: %s", email)
+            record = table.first(formula=match(dict(email=email)))
+            table.update(record.get("id"), fields=dict(status="assessment completed"))
+        except:
+            logger.error("cannot update airtable for %s", email)
 
     async def run_multimodal_agent(self):
         logger.info("starting multimodal agent")
@@ -84,9 +90,9 @@ class AgentSessionManager:
             modalities=["audio", "text"],
             voice="echo",
             # max_output_tokens=1500,
-            turn_detection=openai.realtime.ServerVadOptions(
-                threshold=0.6, prefix_padding_ms=200, silence_duration_ms=2000
-            ),
+            # turn_detection=openai.realtime.ServerVadOptions(
+            #     threshold=0.6, prefix_padding_ms=200, silence_duration_ms=2000
+            # ),
         )
 
         # create a chat context with chat history, these will be synchronized with the server
@@ -121,10 +127,31 @@ class AgentSessionManager:
         )
         return agent
 
+    async def setup_redis_room(self):
+        """We trick the API into thinking that there's a room straight on the redis cluster"""
+        import livekit.protocol.models
+
+        logger.info("faking a redis room")
+        client = redis.Redis(host=app_settings.REDIS_HOST)
+        logger.info("room_name: %s", self.ctx.room.name)
+        sid = await self.ctx.room.sid
+        logger.info("room_sid: %s", sid)
+        room_model = livekit.protocol.models.Room(sid=sid, name=self.ctx.room.name)
+        await client.hset(
+            "rooms",
+            self.ctx.room.name,
+            room_model.SerializeToString().decode("utf8", errors="ignore"),
+        )
+
     async def setup_recording(self):
+        # fake a room
+        await self.setup_redis_room()
+
+        logger.info("setting up recording")
         s3_upload = app_settings.to_livekit()
         req = api.RoomCompositeEgressRequest(
             room_name=self.ctx.room.name,
+            # room_id="",
             layout="speaker",
             preset=api.EncodingOptionsPreset.H264_720P_30,
             audio_only=False,
@@ -138,7 +165,7 @@ class AgentSessionManager:
                 )
             ],
         )
-        resp = await self.lk_api.egress.start_room_composite_egress(req)
+        resp = await self.egress_api.egress.start_room_composite_egress(req)
         logger.info("STARTED RECORDING: " + str(resp))
         return resp
 
