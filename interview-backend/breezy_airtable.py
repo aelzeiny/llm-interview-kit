@@ -49,9 +49,8 @@ class ListCandidatesRequest(BaseModel):
 
 
 class CandidateResume(BaseModel):
-    id_: str = Field(alias="_id")
-    file_name: str
-    url: str
+    url: Optional[str]
+    error: bool = False
 
 
 class Candidate(BaseModel):
@@ -94,11 +93,13 @@ class Candidate(BaseModel):
     """
 
     id_: str = Field(alias="_id")
+    company_id: Optional[str]
+    position_id: Optional[str]
     email_address: str
     headline: Optional[str]
     name: Optional[str]
     phone_number: Optional[str]
-    # resume: CandidateResume
+    resume: Optional[CandidateResume]
 
     def to_airtable(self, source: str):
         return AirtableRecord(
@@ -166,11 +167,29 @@ class BreezyApi:
              -H "Authorization: 00000000-0000-0000-0000-000000000000"\
              https://api.breezy.hr/v3/company/000000000000/position/000000000000/candidates?page_size=10&page=1&sort=created
         """
-        url = f"https://api.breezy.hr/v3/company/{request.company_id}/position/{request.position_id}/candidates?page_size=1000&page=1&sort=created"
+        url = f"https://api.breezy.hr/v3/company/{request.company_id}/position/{request.position_id}/candidates"
+        results = []
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=self.headers) as response:
-                result = await response.json()
-                return [Candidate.model_validate(candidate) for candidate in result]
+            for i in range(10):
+                async with session.get(
+                    f"{url}?page={i}&page_size=50", headers=self.headers
+                ) as response:
+                    result = await response.json()
+                    results.extend(
+                        [
+                            Candidate.model_validate(
+                                {
+                                    **candidate,
+                                    "company_id": request.company_id,
+                                    "position_id": request.position_id,
+                                }
+                            )
+                            for candidate in result
+                        ]
+                    )
+                    if len(result) != 50:
+                        break
+        return results
 
     async def get_resume(self, request: GetResumeRequest) -> bytes:
         """
@@ -185,24 +204,24 @@ class BreezyApi:
                 # Convert to base64
                 return binary_data
 
-
-async def fetch_candidates(request: SignInRequest) -> list[Candidate]:
-    api = BreezyApi()
-    await api.sign_in(request)
-    companies = await api.list_companies()
-    positions = await asyncio.gather(
-        *[api.list_positions(ListPositionsRequest(company_id=c.id_)) for c in companies]
-    )
-    candidates = await asyncio.gather(
-        *[
-            api.list_candidates(
-                ListCandidatesRequest(company_id=c.id_, position_id=p.id_)
-            )
-            for c, p_list in zip(companies, positions)
-            for p in p_list
-        ]
-    )
-    return [c for c_list in candidates for c in c_list]
+    async def bulk_fetch_candidates(self) -> list[Candidate]:
+        companies = await self.list_companies()
+        positions = await asyncio.gather(
+            *[
+                self.list_positions(ListPositionsRequest(company_id=c.id_))
+                for c in companies
+            ]
+        )
+        candidates = await asyncio.gather(
+            *[
+                self.list_candidates(
+                    ListCandidatesRequest(company_id=c.id_, position_id=p.id_)
+                )
+                for c, p_list in zip(companies, positions)
+                for p in p_list
+            ]
+        )
+        return [c for c_list in candidates for c in c_list]
 
 
 class AirtableRecord(BaseModel):
@@ -229,14 +248,18 @@ def get_table() -> Table:
 
 
 async def sync_it():
-    rocketdevs_candidates = await fetch_candidates(
+    rocketdevs_api = BreezyApi()
+    await rocketdevs_api.sign_in(
         SignInRequest(
             email=BREEZY_ROCKETDEVS_EMAIL, password=BREEZY_ROCKETDEVS_PASSWORD
         )
     )
-    hiveminds_candidates = await fetch_candidates(
+    hiveminds_api = BreezyApi()
+    await hiveminds_api.sign_in(
         SignInRequest(email=BREEZY_HIVEMINDS_EMAIL, password=BREEZY_HIVEMINDS_PASSWORD)
     )
+    rocketdevs_candidates = await rocketdevs_api.bulk_fetch_candidates()
+    hiveminds_candidates = await hiveminds_api.bulk_fetch_candidates()
     all_candidates = {
         c.email_address: c.to_airtable("rocketdevs") for c in rocketdevs_candidates
     }
@@ -249,13 +272,16 @@ async def sync_it():
         "NumCandidates:",
         len(all_candidates),
         "HM",
-        len(all_candidates),
+        len(hiveminds_candidates),
         "RD",
         len(rocketdevs_candidates),
+        "BOTH",
+        len([c for c in all_candidates if all_candidates[c].source == "both"]),
     )
     table = get_table()
     to_insert = [dict(fields=c.model_dump()) for c in all_candidates.values()]
     table.batch_upsert(to_insert, key_fields=["email"], replace=False)
+    return all_candidates
 
 
 if __name__ == "__main__":
